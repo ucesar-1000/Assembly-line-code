@@ -1,0 +1,26 @@
+;-------------------------------------------------------------------
+.org 0x0000                             ; Reset Vector 
+          jmp       main
+
+.org INT0addr                           ; D2 Faster btn
+          jmp       faster_isr
+
+.org OC1Aaddr                           ; Timer?Conter1 Compare Match A 
+          jmp       t1_ctc_isr 
+
+.org INT_VECTORS_SIZE                   ; end vector table 
+
+; Main Program 
+;-------------------------------------------------------------------
+
+main: 
+          ; one-time configuration
+          ldi       r16,high(RAMEND)
+          out       SPH,r16
+          ldi       r16,low(RAMEND)                                      
+          out       SPL,r16 
+
+          ; config GPIO
+          sbi       DDRB,DDB0           ; Red LED     
+          sbi       DDRB,DDB1           ; Yellow LED
+          sbi       DDRB,DDB2           ; Green LED 
