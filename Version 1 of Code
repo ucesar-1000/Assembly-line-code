@@ -24,3 +24,37 @@ main:
           sbi       DDRB,DDB0           ; Red LED     
           sbi       DDRB,DDB1           ; Yellow LED
           sbi       DDRB,DDB2           ; Green LED 
+          sbi       DDRC,DDC0           ; Crosswalk LED 
+
+          call      set_green           ; so that green can starts on 
+
+;-------------------------------------------------------------------
+set_green: 
+          sbi       PORTB,PB2           ; to turn green ON 
+          cbi       PORTB,PB0           ; to keep red OFF
+          cbi       PORTB,PB1           ; to keep yellow OFF
+          cbi       PORTC,PC0           ; to keep crosswalk light OFF 
+
+          ret
+;-------------------------------------------------------------------
+set_yellow:
+          sbi       PORTB,PB1           ; to turn yellow ON 
+          cbi       PORTB,PB2           ; to keep green OFF
+          cbi       PORTB,PB0           ; to keep red OFF 
+          cbi       PORTC,PC0           ; to keep crosswalk light OFF 
+
+          ret
+;-------------------------------------------------------------------
+set_red:
+          sbi       PORTB,PB0           ; to turn red ON 
+          cbi       PORTB,PB2           ; to keep green OFF 
+          cbi       PORTB,PB1           ; to keep yellow OFF 
+          
+          cpi       r20,1               ; checks the button flag
+          brne      skip_walk
+          sbi       PORTC,PC0           ; if pressed crosswalk turned ON 
+          clr       r20
+skip_walk:
+          ret
+
+
