@@ -1,0 +1,194 @@
+;======================================================
+; TRAFFIC LIGHT: By Cesar Juarez Vasquez, Kevin Vargas, and Camila Vaca
+; ATmega328P - 16Mhz
+;
+; Green:  5 seconds, then yellow.      
+; Yellow: 3 seconds, then red.
+; Red: 5 seconds, then green.
+; clear/crosswalk: blink every 1s for 5s after button pressed 
+;
+; forever repeat
+
+;======================================================
+;Variables:
+.def temp = r16
+.def counter = r17
+.def state = r18
+
+.equ green = 0
+.equ yellow = 1
+.equ red = 2
+;-------------------------------------------------------------------
+
+.include "m328pdef.inc"
+
+.org 0x0000                             ; Reset Vector 
+          jmp       RESET
+
+.org INT0addr                           ; D2 btn sets crosswalk light. 
+          jmp       Crosswalk_isr
+
+.org OC1Aaddr                           ; Timer Counter1 Compare Match A, used to set timing between red, yellow, and green light 
+          jmp       t1_ctc_isr 
+
+.org INT_VECTORS_SIZE                   ; end vector table 
+
+
+;-------------------------------------------------------------------
+
+;GPIO configuration
+RESET: 
+          ; one-time configuration
+          ldi       temp,high(RAMEND)
+          out       SPH,temp
+          ldi       temp,low(RAMEND)                                      
+          out       SPL,temp
+
+          ; config GPIO
+          sbi       DDRB,DDB0           ; Red LED output
+          sbi       DDRB,DDB1           ; Yellow LED output        
+          sbi       DDRB,DDB2           ; Green LED output
+          sbi       DDRC,DDC0           ; Crosswalk LED output
+
+          ; initializing characters
+          clr       temp
+          clr       counter
+          clr       state
+
+
+
+
+
+          rcall      set_green           ; so that green can starts on 
+
+          
+;-------------------------------------------------------------------
+; Configurig Timer 1
+          ldi       r16, (1<<WGM12)     ; ctc mode
+          sts       TCCR1B, r16
+
+          ldi       r16, HIGH(15624)    ; compare value 15624 = 1s interrupt
+          sts       OCR1AH, r16
+
+          ldi       r16, LOW(15624)
+          sts       OCR1AL, r16
+
+          ldi       r16, (1<<OCIE1A)    ; Enable Timer1 compare match A interrupt
+          sts       TIMSK1, r16
+
+          ldi       r16, (1<<WGM12)|(1<<CS12)|(1<<CS10)     ; Start timer1 with prescaler 1024
+          sts       TCCR1B, r16
+
+          sei                           ; Enable global interrupts
+                     
+;-------------------------------------------------------------------
+main:
+          rjmp main
+
+
+;-------------------------------------------------------------------
+set_green: 
+          sbi       PORTB,PB2           ; to turn green ON 
+          cbi       PORTB,PB0           ; to keep red OFF
+          cbi       PORTB,PB1           ; to keep yellow OFF
+          
+          ret
+;-------------------------------------------------------------------
+set_yellow:
+          sbi       PORTB,PB1           ; to turn yellow ON 
+          cbi       PORTB,PB2           ; to keep green OFF
+          cbi       PORTB,PB0           ; to keep red OFF 
+         
+
+          ret
+;-------------------------------------------------------------------
+set_red:
+          sbi       PORTB,PB0           ; to turn red ON 
+          cbi       PORTB,PB2           ; to keep green OFF 
+          cbi       PORTB,PB1           ; to keep yellow OFF 
+          
+          ret
+;-------------------------------------------------------------------
+Crosswalk_isr:                          
+          
+
+
+
+
+
+
+
+
+          reti                          ; End of isr
+
+;-------------------------------------------------------------------
+t1_ctc_isr:
+          
+          push      temp
+          in        temp, SREG
+          push      temp
+
+          
+      
+;-------------------------------------------------------------------
+;Traffic light timer: executes every second
+
+          inc       counter
+
+          cpi       state, green
+          breq      check_green
+
+          cpi       state, yellow
+          breq      check_yellow
+
+          cpi       state, red
+          breq      check_red
+;-------------------------------------------------------------------
+check_green:
+
+          cpi       counter, 5
+          brne      EXIT_ISR
+          clr       counter
+          
+          ldi       state, yellow
+          rcall     set_yellow  
+          rjmp      EXIT_ISR
+;-------------------------------------------------------------------
+check_yellow:
+
+          cpi       counter, 3
+          brne      EXIT_ISR
+          clr       counter
+
+          ldi       state, red
+          rcall     set_red
+          rjmp      EXIT_ISR
+
+;-------------------------------------------------------------------
+check_red:
+          
+          cpi       counter, 5
+          brne      EXIT_ISR
+          clr       counter
+
+          ldi       state, green
+          rcall     set_green
+          rjmp      EXIT_ISR
+;-------------------------------------------------------------------
+         
+          
+
+EXIT_ISR:
+        
+          pop       temp
+          out       SREG, temp
+          pop       temp
+          reti
+
+
+
+;-------------------------------------------------------------------
+
+
+skip_walk:
+          ret
