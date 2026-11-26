@@ -50,14 +50,16 @@ RESET:
           sbi       DDRB,DDB2           ; Green LED output
           sbi       DDRC,DDC0           ; Crosswalk LED output
 
+          cbi       DDRD, DDD2          ; button setup, pull up
+          sbi       PORTD, PD2 
+          ldi       temp, (1<<ISC01)    ; falling edge
+          sts       EICRA, temp
+          sbi       EIMSK, INT0         ; enable interrupt
+
           ; initializing characters
           clr       temp
           clr       counter
           clr       state
-
-
-
-
 
           rcall      set_green           ; so that green can starts on 
 
@@ -91,6 +93,8 @@ set_green:
           sbi       PORTB,PB2           ; to turn green ON 
           cbi       PORTB,PB0           ; to keep red OFF
           cbi       PORTB,PB1           ; to keep yellow OFF
+
+          cbi       PORTC,PC0           ; turn crosswalk OFF
           
           ret
 ;-------------------------------------------------------------------
@@ -98,7 +102,6 @@ set_yellow:
           sbi       PORTB,PB1           ; to turn yellow ON 
           cbi       PORTB,PB2           ; to keep green OFF
           cbi       PORTB,PB0           ; to keep red OFF 
-         
 
           ret
 ;-------------------------------------------------------------------
@@ -106,20 +109,25 @@ set_red:
           sbi       PORTB,PB0           ; to turn red ON 
           cbi       PORTB,PB2           ; to keep green OFF 
           cbi       PORTB,PB1           ; to keep yellow OFF 
+
+          sbi       PORTC,PC0           ; turn crosswalk ON
           
           ret
 ;-------------------------------------------------------------------
-Crosswalk_isr:                          
-          
+Crosswalk_isr:
 
+          push      temp
+          in        temp, SREG
+          push      temp
 
+          cpi       state, green        ; ignore if light is green
+          brne      EXIT_ISR
 
+          clr       counter
+          ldi       state, yellow
+          rcall     set_yellow
 
-
-
-
-
-          reti                          ; End of isr
+          rjmp      EXIT_ISR
 
 ;-------------------------------------------------------------------
 t1_ctc_isr:
@@ -128,8 +136,6 @@ t1_ctc_isr:
           in        temp, SREG
           push      temp
 
-          
-      
 ;-------------------------------------------------------------------
 ;Traffic light timer: executes every second
 
@@ -145,17 +151,9 @@ t1_ctc_isr:
           breq      check_red
 ;-------------------------------------------------------------------
 check_green:
-
-          cpi       counter, 5
-          brne      EXIT_ISR
-          clr       counter
-          
-          ldi       state, yellow
-          rcall     set_yellow  
-          rjmp      EXIT_ISR
+          rjmp      EXIT_ISR            ; stays green until interrupted
 ;-------------------------------------------------------------------
 check_yellow:
-
           cpi       counter, 3
           brne      EXIT_ISR
           clr       counter
@@ -166,7 +164,6 @@ check_yellow:
 
 ;-------------------------------------------------------------------
 check_red:
-          
           cpi       counter, 5
           brne      EXIT_ISR
           clr       counter
@@ -175,8 +172,6 @@ check_red:
           rcall     set_green
           rjmp      EXIT_ISR
 ;-------------------------------------------------------------------
-         
-          
 
 EXIT_ISR:
         
@@ -185,10 +180,7 @@ EXIT_ISR:
           pop       temp
           reti
 
-
-
 ;-------------------------------------------------------------------
-
 
 skip_walk:
           ret
